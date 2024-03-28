@@ -1,5 +1,7 @@
 # BulletupHell
 
+(note : a new big version is about to release in a couple of days, I advice to wait for this new version before using it in a big project to avoid any updating issue)
+
  1. Presentation
  2. Installation
  3. Q&A
