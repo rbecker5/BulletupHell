@@ -1,6 +1,6 @@
 # BulletupHell
 
-(note : a new big version is about to release in a couple of days, I advice to wait for this new version before using it in a big project to avoid any updating issue)
+(note : a new big version is about to release in a couple of days, I advice to wait for this new version before using it in a big project to avoid any updating issue. Link to my ytb and discord below for more info.)
 
  1. Presentation
  2. Installation
