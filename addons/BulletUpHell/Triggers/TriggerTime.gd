@@ -2,7 +2,7 @@
 extends RichTextEffect
 class_name TriggerTime
 
-@export var time:float = 0
+@export_range(0.017, 999999, 0.001, "hide_slider", "suffix:s") var time:float = 1
 
 func _init():
 	resource_name = "TrigTime"
