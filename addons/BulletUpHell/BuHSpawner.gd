@@ -910,7 +910,7 @@ func _draw():
 
 		texture = get_texture_frame(b, B)
 		draw_set_transform_matrix(Transform2D(b["rotation"]+b.get("rot_index",0),
-									b.get("scale", Vector2(b["props"]["scale"]*b["anim"][ANIM.SCALE],b["props"]["scale"]*B["anim"][ANIM.SCALE])), \
+									b.get("scale", Vector2(b["props"]["scale"]*b["anim"][ANIM.SCALE],b["props"]["scale"]*b["anim"][ANIM.SCALE])), \
 									b["anim"][ANIM.SKEW], b["position"]))
 
 		if b["props"].has("spec_modulate"):

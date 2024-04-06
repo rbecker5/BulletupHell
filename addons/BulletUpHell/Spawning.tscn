@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://gixop20d1d75"]
+[gd_scene load_steps=15 format=3 uid="uid://gixop20d1d75"]
 
 [ext_resource type="Script" path="res://addons/BulletUpHell/BuHSpawner.gd" id="1"]
 [ext_resource type="Texture2D" uid="uid://wywclfkxgk1k" path="res://addons/BulletUpHell/Bullet/Sprites/Bullet_3.png" id="2_3slxn"]
@@ -7,16 +7,50 @@
 [ext_resource type="Texture2D" uid="uid://cud12jgusn0mu" path="res://addons/BulletUpHell/Bullet/Sprites/Bullet_11.png" id="4_gntuv"]
 [ext_resource type="AudioStream" uid="uid://c6x5p1wu4yo3q" path="res://addons/BulletUpHell/Bullet/Hit Hurt.wav" id="5_rada6"]
 
-[sub_resource type="Resource" id="Resource_xm2a4"]
+[sub_resource type="Resource" id="Resource_uhb1j"]
+script = ExtResource("2_4dc5c")
+ID = ""
+texture = "0"
+collision = "0"
+SFX = ""
+tex_scale = 1.0
+tex_skew = 0.0
+
+[sub_resource type="Resource" id="Resource_f2r10"]
+script = ExtResource("2_4dc5c")
+ID = ""
+texture = "0"
+collision = "0"
+SFX = ""
+tex_scale = 1.0
+tex_skew = 0.0
+
+[sub_resource type="Resource" id="Resource_i42bv"]
 script = ExtResource("2_4dc5c")
 ID = ""
 texture = "0"
 collision = "0"
 SFX = "0"
+tex_scale = 1.0
+tex_skew = 0.0
 
-[sub_resource type="Curve" id="4"]
-_data = [Vector2(0, 0.501305), 0.0, 0.880193, 0, 1, Vector2(0.244176, 0.716227), 2.21406, 2.21406, 0, 0, Vector2(0.515975, 1), -0.239755, -0.239755, 0, 0, Vector2(0.76004, 0.723903), -2.76758, -2.76758, 0, 0, Vector2(1, 0.501305), -1.40458, 0.0, 0, 0]
-point_count = 5
+[sub_resource type="Resource" id="Resource_7rfek"]
+script = ExtResource("2_4dc5c")
+ID = ""
+texture = "0"
+collision = "0"
+SFX = ""
+tex_scale = 1.0
+tex_skew = 0.0
+
+[sub_resource type="Resource" id="Resource_tl1ht"]
+script = ExtResource("2_4dc5c")
+ID = ""
+texture = "0"
+collision = "0"
+SFX = ""
+tex_scale = 1.0
+tex_skew = 0.0
 
 [sub_resource type="SpriteFrames" id="1"]
 animations = [{
@@ -56,8 +90,11 @@ points = PackedVector2Array(0, 0)
 [node name="BulletHellManager" type="Node2D"]
 z_index = 999
 script = ExtResource("1")
-default_anim = SubResource("Resource_xm2a4")
-rand_variation_list = Array[Curve]([SubResource("4")])
+default_idle = SubResource("Resource_uhb1j")
+default_spawn = SubResource("Resource_f2r10")
+default_shoot = SubResource("Resource_i42bv")
+default_waiting = SubResource("Resource_7rfek")
+default_delete = SubResource("Resource_tl1ht")
 
 [node name="SharedAreas" type="Node2D" parent="."]
 
