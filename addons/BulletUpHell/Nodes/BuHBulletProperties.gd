@@ -33,7 +33,7 @@ func _ready():
 				"BulletProperties has no curve. Draw one like you'd draw a Path2D with the BulletPattern node")
 			props.curve = curve
 	
-	var dict:Dictionary = {}; var P; var has_random:bool=false;
+	var dict:Dictionary = {}; var P:String; var value; var has_random:bool=false;
 	var anim_state_name:String
 	var allow_random:bool = (props is ObjectProps or randf_range(0,1) <= props.get("r_randomisation_chances"));
 	for p in props.get_property_list():
@@ -73,17 +73,19 @@ func _ready():
 		elif P in ["homing_when_list_ends"] and not dict.has("homing_list"): continue
 		elif P in ["spec_trail_modulate","spec_trail_width"] and not dict.has("spec_trail_length"): continue
 		
-		elif P == "anim_states":
-			for a in props.get(P):
-				anim_state_name = "anim_"+a.ID
-				dict[anim_state_name] = [a.texture, Spawning.arrayShapes[a.collision], Spawning.SFX.get_node(a.SFX)]
-				if dict[anim_state_name][ATEXTURE] == "": dict[anim_state_name][ATEXTURE] = Spawning.default_anim.texture
-				if dict[anim_state_name][ACOLLISION] == "": dict[anim_state_name][ACOLLISION] = Spawning.default_anim.collision
-				if dict[anim_state_name][ASFX] == "": dict[anim_state_name][ASFX] = Spawning.default_anim.SFX
-			if not dict.has("anim_idle"):
-				dict["anim_idle"] = [Spawning.default_anim.texture, Spawning.arrayShapes[Spawning.default_anim.collision], Spawning.SFX.get_node(Spawning.default_anim.SFX)]
-			if dict.has("anim_spawn"): dict["first_collision"] = dict["anim_spawn"][ACOLLISION]
-			else: dict["first_collision"] = dict["anim_idle"][ACOLLISION]
+		elif P.left(5) == "anim_":
+			if P == "anim_more":
+				for a in value: Spawning.set_anim_states(a, P, id)
+			elif P == "anim_idle":
+				if value == null: dict[P] = "@anim_idle"
+				else:
+					Spawning.set_anim_states(value, P, id)
+					dict[P] = value.ID
+			elif P in ["anim_spawn","anim_shoot","anim_waiting","anim_delete"]:
+				if value == null: dict[P] = dict["anim_idle"]
+				else:
+					Spawning.set_anim_states(value, P, id)
+					dict[P] = value.ID
 			continue
 		
 		elif P.left(2) == "r_":

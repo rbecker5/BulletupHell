@@ -80,7 +80,7 @@ func applyTrigger(b, list, counter:int, cond_index:int, isNode:bool):
 		if "+" in list:
 			list = list.split("+")
 			for p in list: callAction(isNode, b, id+"/"+p)
-		else: callAction(isNode, b, id+"/"+list)
+		else: callAction(isNode, b, id+"/"+list[randi()%list.size()])
 	elif "+" in list:
 		list = list.split("+")
 		for p in list: callAction(isNode, b, id+"/"+p)
