@@ -13,19 +13,13 @@ var death_outside_box:Rect2 = Rect2()
 var death_from_collision:bool = true
 
 ## animations
-var anim_states:Array[Resource]
-var anim_idle_texture:String = "0"
-var anim_spawn_texture:String
-var anim_waiting_texture:String
-var anim_delete_texture:String
-var anim_idle_collision:String = "0"
-var anim_spawn_collision:String
-var anim_waiting_collision:String
-var anim_delete_collision:String
-var anim_idle_sfx:int = -1 #TODO change to string
-var anim_spawn_sfx:int = -1
-var anim_waiting_sfx:int = -1
-var anim_delete_sfx:int = -1
+@export_group("Animation", "anim_")
+@export var anim_idle:animState
+@export var anim_spawn:animState
+@export var anim_shoot:animState
+@export var anim_waiting:animState
+@export var anim_delete:animState
+@export var anim_more:Array[animState] = []
 
 ## movement
 enum CURVE_TYPE{None,LoopFromStart,OnceThenDie,OnceThenStay,LoopFromEnd}
@@ -121,6 +115,19 @@ var r_death_outside_chances:float
 var r_wait_for_shot_chances:float
 # draw
 # animations directly in
+
+var anim_idle_texture:String = "0"
+var anim_spawn_texture:String
+var anim_waiting_texture:String
+var anim_delete_texture:String
+var anim_idle_collision:String = "0"
+var anim_spawn_collision:String
+var anim_waiting_collision:String
+var anim_delete_collision:String
+var anim_idle_sfx:int = -1 #TODO change to string
+var anim_spawn_sfx:int = -1
+var anim_waiting_sfx:int = -1
+var anim_delete_sfx:int = -1
 #todo
 var r_no_coll_chances:float
 var r_modulate_variation:Vector3
@@ -163,62 +170,7 @@ func _get_property_list() -> Array:
 			type = TYPE_NIL,
 			hint_string = "anim_",
 			usage = PROPERTY_USAGE_GROUP
-		},{
-			name = "anim_states",
-			type = TYPE_ARRAY,
-			hint = PROPERTY_HINT_ARRAY_TYPE,
-			hint_string = "Resource",
-			usage = PROPERTY_USAGE_DEFAULT
 		},
-		#{
-			#name = "anim_idle_texture",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_spawn_texture",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_waiting_texture",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_delete_texture",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_idle_collision",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_spawn_collision",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_waiting_collision",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_delete_collision",
-			#type = TYPE_STRING,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_idle_sfx",
-			#type = TYPE_INT,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_spawn_sfx",
-			#type = TYPE_INT,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_waiting_sfx",
-			#type = TYPE_INT,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "anim_delete_sfx",
-			#type = TYPE_INT,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},
 		{
 			name = "Special Properties",
 			type = TYPE_NIL,
@@ -243,12 +195,6 @@ func _get_property_list() -> Array:
 			type = TYPE_FLOAT,
 			usage = PROPERTY_USAGE_DEFAULT
 		},{
-			name = "spec_skew",
-			type = TYPE_FLOAT,
-			hint = PROPERTY_HINT_RANGE,
-			hint_string = "-89,9, 89.9",
-			usage = PROPERTY_USAGE_DEFAULT
-		},{
 			name = "spec_trail_length",
 			type = TYPE_FLOAT,
 			usage = PROPERTY_USAGE_DEFAULT
@@ -265,15 +211,6 @@ func _get_property_list() -> Array:
 			type = TYPE_FLOAT,
 			usage = PROPERTY_USAGE_DEFAULT
 		},
-		#{
-			#name = "spec_angle_no_colliding",
-			#type = TYPE_FLOAT,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},{
-			#name = "spec_angle_no_coll_offset",
-			#type = TYPE_FLOAT,
-			#usage = PROPERTY_USAGE_DEFAULT
-		#},
 		{
 			name = "Destruction",
 			type = TYPE_NIL,
