@@ -8,12 +8,15 @@ const STANDARD_BULLET_RADIUS = 5
 
 var CUSTOM:customFunctions = customFunctions.new()
 
-@export var default_anim:animState
+
 @export var GROUP_BOUNCE:String = "Slime"
 
 @export_group("Resource Lists")
-@export var sfx_list:Array[AudioStream] = []
-@export var rand_variation_list:Array[Curve] = []
+@export var default_idle:animState
+@export var default_spawn:animState
+@export var default_shoot:animState
+@export var default_waiting:animState
+@export var default_delete:animState
 
 ## Data Structs
 var arrayProps:Dictionary = {}
@@ -21,6 +24,7 @@ var arrayTriggers:Dictionary = {}
 var arrayPatterns:Dictionary = {}
 var arrayContainers:Dictionary = {}
 var arrayInstances:Dictionary = {}
+var arrayAnim:Dictionary = {}
 @onready var textures:SpriteFrames = $ShapeManager.sprite_frames
 @onready var arrayShapes:Dictionary = {} # format: id={shape, offset, rotation}
 @onready var viewrect = get_viewport().get_visible_rect()
@@ -30,7 +34,7 @@ var poolBullets:Dictionary = {}
 var shape_indexes:Dictionary = {}
 var shape_rids:Dictionary = {}
 var Phys = PhysicsServer2D
-enum BState{Unactive,Spawning,Spawned,Shooting,Moving,QueuedFree}
+enum BState{Unactive, Spawning, Spawned, Shooting, Moving, QueuedFree}
 const UNACTIVE_ZONE = Vector2(99999,99999)
 
 # pooling
@@ -49,10 +53,11 @@ var RAND = RandomNumberGenerator.new()
 var expression = Expression.new()
 var _delta:float = 0
 var HOMING_MARGIN = 20
-enum GROUP_SELECT{Nearest_on_homing,Nearest_on_spawn,Nearest_on_shoot,Nearest_anywhen,Random}
+enum GROUP_SELECT{Nearest_on_homing, Nearest_on_spawn, Nearest_on_shoot, Nearest_anywhen, Random}
 enum SYMTYPE{ClosedShape,Line}
-enum CURVE_TYPE{None,LoopFromStart,OnceThenDie,OnceThenStay,LoopFromEnd}
+enum CURVE_TYPE{None, LoopFromStart, OnceThenDie, OnceThenStay, LoopFromEnd}
 enum LIST_ENDS{Stop, Loop, Reverse}
+enum ANIM{TEXTURE, COLLISION, SFX, SCALE, SKEW}
 
 var global_reset_counter:int = 0
 
@@ -61,10 +66,7 @@ var global_reset_counter:int = 0
 #var move_thread: Thread
 #var draw_thread: Thread
 
-const ATEXTURE:int = 0
-const ACOLLISION:int = 1
-const ASFX:int = 2
-@onready var SFX:Node2D = $SFX
+
 
 
 
@@ -78,6 +80,7 @@ func _ready():
 	#draw_thread = Thread.new()
 
 	randomize()
+
 	$ShapeManager.hide()
 	for s in $ShapeManager.get_children():
 		assert(s is CollisionShape2D or s is CollisionPolygon2D)
@@ -89,12 +92,15 @@ func _ready():
 		a.connect("area_shape_entered",Callable(self,"bullet_collide_area").bind(a))
 		a.connect("body_shape_entered",Callable(self,"bullet_collide_body").bind(a))
 		a.set_meta("ShapeCount", 0)
+
 	$Bouncy.global_position = UNACTIVE_ZONE
-	var instance
-	for s in sfx_list:
-		instance = AudioStreamPlayer.new()
-		instance.stream = s
-		SFX.call_deferred("add_child",instance)
+
+	var default_anims:Array[animState] = [default_idle, default_spawn, default_shoot, default_waiting, default_delete]
+	for a in default_anims.size():
+		default_anims[a].ID = "@"+["anim_idle","anim_spawn","anim_shoot","anim_waiting","anim_delete"][a]
+		set_anim_states(default_anims[a])
+
+	#update_viewport()
 
 func reset(minimal:bool=false):
 	# change that in order signal that a reset has been made and stop the currently running func
@@ -124,10 +130,11 @@ func reset(minimal:bool=false):
 		arrayTriggers.clear()
 		arrayProps.clear()
 	else:
-		for array in [arrayContainers, arrayInstances, arrayPatterns, arrayProps, arrayTriggers]:
+		for array in [arrayContainers, arrayInstances, arrayPatterns, arrayProps, arrayTriggers, arrayAnim]:
 			for elem in array.keys():
 				if elem[0] == "@": continue
 				array.erase(elem)
+
 
 func _exit_tree():
 	#spawn_thread.wait_to_finish()
@@ -224,7 +231,18 @@ func container(id:String):
 	return arrayContainers[id]
 
 
+func set_anim_states(a:animState, P:String="", id:String=""):
+	if a.ID == "": a.ID = "_"+id+"_"+P
+	var col
+	var sfx
+	if a.texture == "": a.texture = arrayAnim["@"+P][ANIM.TEXTURE]
+	if a.collision == "": col = arrayAnim["@"+P][ANIM.COLLISION]
+	else: col = arrayShapes[a.collision]
+	if a.SFX == "": sfx = null
+	else: sfx = $SFX.get_node(a.SFX)
 
+	arrayAnim[a.ID] = [a.texture, col, sfx, a.tex_scale, a.tex_skew]
+	return a.ID
 
 
 
@@ -243,13 +261,12 @@ func create_pool(bullet:String, shared_area:String, amount:int, object:bool=fals
 		for i in amount:
 			inactive_pool[bullet].append(instance(props["instance_id"]).duplicate())
 	else:
-		#var colID:String = props.get("anim_spawn_collision", props["anim_idle_collision"])
 		var shared_rid:RID = get_shared_area_rid(shared_area)
 		var count:int = Phys.area_get_shape_count(shared_rid)
 		var new_rid:RID
 		$SharedAreas.get_node(shared_area).set_meta("ShapeCount", $SharedAreas.get_node(shared_area).get_meta("ShapeCount",0)+amount) # Warning, bad sync possible ?
 		for i in amount:
-			new_rid = create_shape(shared_rid, props["first_collision"], true, count+i)
+			new_rid = create_shape(shared_rid, arrayAnim[props["anim_spawn"]][ANIM.COLLISION], true, count+i)
 #			shape_indexes[new_rid] = count+i
 			_update_shape_indexes(new_rid, count+i, shared_area)
 			inactive_pool[bullet].append([new_rid, shared_area])
@@ -337,7 +354,6 @@ func create_bullet_instance_dict(queued_instance:Dictionary, bullet_props:Dictio
 	queued_instance["speed"] = bullet_props.speed
 	queued_instance["vel"] = Vector2()
 	if bullet_props.has("groups"): queued_instance["groups"] = bullet_props.get("groups")
-	if pattern.follows_parent: queued_instance["follows_parent"] = true
 	return queued_instance
 
 func set_spawn_data(queued_instance:Dictionary, bullet_props:Dictionary, pattern:Pattern, i:int, ori_angle:float):
@@ -364,9 +380,9 @@ func set_spawn_data(queued_instance:Dictionary, bullet_props:Dictionary, pattern
 
 func spawn(spawner, id:String, shared_area:String="0"):
 	#spawn_thread.start(_thread_spawn.bind(spawner, id, shared_area))
-	_thread_spawn(spawner, id, shared_area)
+	#_thread_spawn(spawner, id, shared_area)
 
-func _thread_spawn(spawner, id:String, shared_area:String="0"):
+#func _thread_spawn(spawner, id:String, shared_area:String="0"):
 	assert(arrayPatterns.has(id))
 	var local_reset_counter:int = global_reset_counter
 	var bullets:Array
@@ -376,6 +392,7 @@ func _thread_spawn(spawner, id:String, shared_area:String="0"):
 
 	var pos:Vector2; var ori_angle:float;
 	var bullet_props:Dictionary; var queued_instance:Dictionary; var bID; var is_object:bool; var is_bullet_node:bool
+	var tw_endpos:Vector2;
 	while iter != 0:
 		if spawner == null: return
 		if spawner is Node2D:
@@ -398,7 +415,8 @@ func _thread_spawn(spawner, id:String, shared_area:String="0"):
 			queued_instance["source_node"] = spawner
 			queued_instance["state"] = BState.Unactive
 			if not is_object:
-				queued_instance["colID"] = bullet_props["first_collision"]
+				queued_instance["anim"] = arrayAnim[bullet_props["anim_idle"]]
+				queued_instance["colID"] = queued_instance["anim"][ANIM.COLLISION]
 				queued_instance = create_bullet_instance_dict(queued_instance, bullet_props, pattern)
 			elif is_bullet_node: queued_instance = create_bullet_instance_dict(queued_instance, bullet_props, pattern)
 
@@ -408,9 +426,9 @@ func _thread_spawn(spawner, id:String, shared_area:String="0"):
 				set_angle(pattern, pos, queued_instance)
 			else: queued_instance["rotation"] = 0
 
-			if pattern.get("wait_tween_momentum") > 0:
-				var tw_endpos = queued_instance["spawn_pos"]+pos+Vector2(pattern["wait_tween_length"], 0).rotated(PI+queued_instance["rotation"])
-				queued_instance["momentum_data"] = [pattern["wait_tween_momentum"]-1, tw_endpos, pattern["wait_tween_time"]]
+			if pattern.wait_tween_momentum > 0:
+				tw_endpos = queued_instance["spawn_pos"]+pos+Vector2(pattern.wait_tween_length, 0).rotated(PI+queued_instance["rotation"])
+				queued_instance["momentum_data"] = [pattern.wait_tween_momentum-1, tw_endpos, pattern.wait_tween_time]
 
 			bID = wake_from_pool(pattern.bullet, queued_instance, shared_area, is_object)
 			bullets.append(bID)
@@ -536,7 +554,6 @@ func _spawn(bullets:Array):
 		if B["state"] >= BState.Moving: continue
 		if B["source_node"] is Dictionary: B["position"] = B["spawn_pos"] + B["source_node"]["position"]
 		else: B["position"] = B["spawn_pos"] + B["source_node"].global_position
-		#if check_bullet_culling(B,b): continue
 
 		if b is Node2D: # scene spawning
 			_spawn_object(b, B)
@@ -545,7 +562,7 @@ func _spawn(bullets:Array):
 		if b is RID or props.has("speed"):
 			if not change_animation(B,"spawn",b): B["state"] = BState.Spawning
 			else: B["state"] = BState.Spawned
-			if props.has("anim_spawn"): props["anim_spawn"][ASFX].play()
+			if arrayAnim[props["anim_spawn"]][ANIM.SFX]: arrayAnim[props["anim_spawn"]][ANIM.SFX].play()
 
 			init_special_variables(B,b)
 			if props.get("homing_select_in_group",-1) == GROUP_SELECT.Nearest_on_spawn:
@@ -553,12 +570,17 @@ func _spawn(bullets:Array):
 		else: poolBullets.erase(b)
 
 func _spawn_object(b:Node2D, B:Dictionary):
-	b.global_position = B["spawn_pos"]
-	b.rotation += B["rotation"]
 	if b is CollisionObject2D:
 		b.collision_layer = B["shared_area"].collision_layer
 		b.collision_mask = B["shared_area"].collision_mask
-	B["source_node"].call_deferred("add_child", b)
+	if B["source_node"] is Dictionary:
+		B["source_node"]["source_node"].call_deferred("add_child", b)
+		b.global_position = B["source_node"]["position"]-B["source_node"]["source_node"].position
+		b.rotation += B["source_node"]["rotation"]
+	else:
+		b.global_position = B["spawn_pos"]
+		b.rotation += B["rotation"]
+		B["source_node"].call_deferred("add_child", b)
 
 func use_momentum(pos:Vector2, B:Dictionary):
 	B["position"] = pos
@@ -573,7 +595,6 @@ func _shoot(bullets:Array):
 		if (not b is RID and not props.has("speed")):
 			poolBullets.erase(b)
 			continue
-		#if check_bullet_culling(B,b): continue
 
 		if B.has("momentum_data"):
 			var tween = get_tree().create_tween()
@@ -581,8 +602,8 @@ func _shoot(bullets:Array):
 
 		B["state"] = BState.Moving
 
-		if B.get("follows_parent", false): B.erase("follows_parent")
-		elif not props.has("curve"): B.erase("spawn_pos")
+		if not props.has("curve"): B.erase("spawn_pos")
+		else: B["spawn_pos"] = B["position"]
 
 		if props.has("homing_target") or props.has("node_homing"):
 			if props.get("homing_time_start",0) > 0:
@@ -592,7 +613,7 @@ func _shoot(bullets:Array):
 			target_from_options(B)
 
 		if not change_animation(B,"shoot",b): B["state"] = BState.Shooting
-		if props.has("anim_shoot"): props["anim_shoot"][ASFX].play()
+		if arrayAnim[props["anim_shoot"]][ANIM.SFX]: arrayAnim[props["anim_shoot"]][ANIM.SFX].play()
 
 func init_special_variables(b:Dictionary, rid):
 	var bp = b["props"]
@@ -839,7 +860,7 @@ func _update_shape_indexes(rid, index:int, area:String):
 #§§§§§§§§§§§§§ DRAW BULLETS §§§§§§§§§§§§§
 
 func get_texture_frame(b:Dictionary, B, spriteframes:SpriteFrames=textures):
-	if not b.has("anim_frame"): return spriteframes.get_frame_texture(b["texture"], 0)
+	if not b.has("anim_frame"): return spriteframes.get_frame_texture(b["anim"][ANIM.TEXTURE], 0)
 	else:
 		b["anim_counter"] += _delta
 		if b["anim_counter"] >= 1/b["anim_speed"]:
@@ -850,11 +871,11 @@ func get_texture_frame(b:Dictionary, B, spriteframes:SpriteFrames=textures):
 					b["anim_frame"] = 0
 				elif b["state"] == BState.Shooting:
 					b["state"] = BState.Moving
-					change_animation(b, "moving", B)
+					change_animation(b, "idle", B)
 				elif b["state"] == BState.Spawning:
 					b["state"] = BState.Spawned
 					change_animation(b, "waiting", B)
-		return spriteframes.get_frame_texture(b["texture"], b["anim_frame"])
+		return spriteframes.get_frame_texture(b["anim"][ANIM.TEXTURE], b["anim_frame"])
 
 func modulate_bullet(b:Dictionary, texture:Texture):
 	if b["props"].has("spec_modulate_loop"):
@@ -888,8 +909,9 @@ func _draw():
 				continue
 
 		texture = get_texture_frame(b, B)
-		draw_set_transform_matrix(Transform2D(b["rotation"]+b.get("rot_index",0), b.get("scale",Vector2(b["props"]["scale"],b["props"]["scale"])),\
-												b["props"].get("skew",0), b["position"]))
+		draw_set_transform_matrix(Transform2D(b["rotation"]+b.get("rot_index",0),
+									b.get("scale", Vector2(b["props"]["scale"]*b["anim"][ANIM.SCALE],b["props"]["scale"]*B["anim"][ANIM.SCALE])), \
+									b["anim"][ANIM.SKEW], b["position"]))
 
 		if b["props"].has("spec_modulate"):
 			modulate_bullet(b, texture)
@@ -898,14 +920,17 @@ func _draw():
 # type = "idle","spawn","waiting","delete"
 func change_animation(b:Dictionary, type:String, B):
 	if B is Node2D: return true
-	var anim_state:Array = b["props"].get("anim_"+type,b["props"].get("anim_idle"))
-	var anim_id:String = anim_state[ATEXTURE]
-	var instantly:bool = true
-	if anim_id == "":
-		return true
+	var instantly:bool = false
+	var anim_state:Array
+	if type in ["spawn","shoot","idle","waiting","delete"]:
+		anim_state = arrayAnim.get(b["props"].get("anim_"+type, ""), [])
+		if b["props"]["anim_"+type] == b["props"]["anim_idle"]:
+			instantly = true
+	else: anim_state = arrayAnim[type]
 
-	#if anim_id == null: return instantly
-	b["texture"] = anim_id
+	var anim_id:String = anim_state[ANIM.TEXTURE]
+
+	b["anim"] = anim_state
 	var frame_count:int = textures.get_frame_count(anim_id)
 	if frame_count > 1:
 		b["anim_length"] = frame_count
@@ -913,15 +938,15 @@ func change_animation(b:Dictionary, type:String, B):
 		b["anim_frame"] = 0
 		b["anim_loop"] = textures.get_animation_loop(anim_id)
 		b["anim_speed"] = textures.get_animation_speed(anim_id)
-		instantly = false
 	elif b.has("anim_frame"):
 		b.erase("anim_length")
 		b.erase("anim_counter")
 		b.erase("anim_frame")
 		b.erase("anim_loop")
 		b.erase("anim_speed")
+		instantly = true
 
-	var col_id:Array = anim_state[ACOLLISION]
+	var col_id:Array = anim_state[ANIM.COLLISION]
 	if not col_id.is_empty() and col_id != b["colID"]:
 		b["colID"] = col_id
 		var new_rid:RID = create_shape(b["shared_area"].get_rid(), b["colID"])
@@ -937,6 +962,7 @@ func change_animation(b:Dictionary, type:String, B):
 
 
 #§§§§§§§§§§§§§ USEFUL FUCNTIONS / API §§§§§§§§§§§§§
+
 ### BULLETS
 
 func clear_all_bullets():
@@ -954,7 +980,7 @@ func clear_bullets_within_dist(target_pos, radius:float=STANDARD_BULLET_RADIUS):
 func delete_bullet(b):
 	if not poolBullets.has(b): return
 	var B = poolBullets[b]
-	if B["props"].has("anim_delete"): SFX.get_child(B["props"]["anim_delete"][ASFX]).play()
+	if arrayAnim[B["props"]["anim_delete"]][ANIM.SFX]: arrayAnim[B["props"]["anim_delete"]][ANIM.SFX].play()
 	back_to_grave(B["props"]["__ID__"],b)
 
 func get_bullets_in_radius(origin:Vector2, radius:float):
@@ -1168,50 +1194,16 @@ func bullet_collide_body(body_rid:RID,body:Node,body_shape_index:int,local_shape
 
 func bounce(B:Dictionary, shared_area:Area2D):
 	if not B.has("colID"): return #TODO support custom bullet nodes
-	$Bouncy/CollisionShape2D.shape = arrayShapes[B["colID"]][0]
+	$Bouncy/CollisionShape2D.set_deferred("shape", B["colID"][0])
 	$Bouncy.collision_layer = shared_area.collision_layer
 	$Bouncy.collision_mask = shared_area.collision_mask
 	$Bouncy.global_position = B["position"]
 	var collision = $Bouncy.move_and_collide(Vector2(0,0))
 	if collision:
-		B["vel"] = B["vel"].bounce(collision.normal)
+		B["vel"] = B["vel"].bounce(collision.get_normal())
 		B["rotation"] = B["vel"].angle()
 	$Bouncy/CollisionShape2D.shape = null
 	$Bouncy.global_position = UNACTIVE_ZONE
-
-
-
-
-
-
-
-#§§§§§§§§§§§§§ CULLING §§§§§§§§§§§§§
-
-#enum CULLTYPE{Bullet,Move,Trigger}
-#
-#func check_bullet_culling(B:Dictionary, rid):
-	#if not check_culling(B,CULLTYPE.Bullet): return
-	#delete_bullet(rid)
-	#return true
-#
-#func check_move_culling(B:Dictionary):
-	#return check_culling(B,CULLTYPE.Move)
-#
-#func check_trig_culling(B:Dictionary):
-	#return check_culling(B,CULLTYPE.Trigger)
-#
-#func check_culling(B:Dictionary,type:int):
-	#if B["state"] in [BState.Unactive, BState.QueuedFree]: return false
-	#var can_cull
-	#match type:
-		#CULLTYPE.Bullet: can_cull = cull_bullets
-		#CULLTYPE.Move: can_cull = cull_partial_move
-		#CULLTYPE.Trigger: can_cull = cull_trigger
-	#return can_cull \
-		#and not viewrect.grow(cull_minimum_speed_required/B.get("speed", cull_minimum_speed_required)).abs().has_point(B["position"]) \
-		#and !B.get("no_culling", false)
-
-
 
 
 
