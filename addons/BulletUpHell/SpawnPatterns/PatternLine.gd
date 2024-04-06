@@ -7,7 +7,7 @@ class_name PatternLine
 @export var offset = Vector2()
 @export var center = 1
 @export var symmetric = true
-@export var symmetry_type = Spawning.SYMTYPE.Line
+var symmetry_type = Spawning.SYMTYPE.Line
 
 
 func _init():
