@@ -42,7 +42,7 @@ var spec_bounces:int = 0
 var spec_no_collision:bool = false
 var spec_modulate:Gradient
 var spec_modulate_loop:float = 0.0
-var spec_skew:float = 0.0
+#var spec_skew:float = 0.0
 var spec_rotating_speed:float = 0.0
 var spec_trail_length:float = 0.0
 var spec_trail_width:float = 0.0

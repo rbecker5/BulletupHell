@@ -12,7 +12,7 @@ class_name ObjectProps
 @export_group("Triggers")
 @export var trigger_container:String
 @export var trigger_wait_for_shot = true
-@export var r_trigger_choice:String
+#@export var r_trigger_choice:String
 
 var node_container:Node2D
 
