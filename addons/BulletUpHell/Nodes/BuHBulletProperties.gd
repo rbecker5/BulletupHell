@@ -38,6 +38,7 @@ func _ready():
 	var allow_random:bool = (props is ObjectProps or randf_range(0,1) <= props.get("r_randomisation_chances"));
 	for p in props.get_property_list():
 		P = p["name"]
+		value = props.get(P)
 		if P in ["__data__","spec_top_level","spec_ally","a_angular_equation","mask","r_randomisation_chances",
 			"RefCounted","Resource","resource_local_to_scene","resource_path","Resource","node_container",
 			"resource_name","PackedDataContainer","script","Script Variables","homing_position", "homing_list_ordered", "homing_type",

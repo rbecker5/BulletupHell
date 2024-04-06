@@ -70,7 +70,7 @@ func _ready():
 
 func set_pool():
 	var props = Spawning.pattern(auto_pattern_id)["bullet"]
-	Spawning.create_pool(props, shared_area_name, pool_amount, !Spawning.bullet(props).has("anim_idle_collision"))
+	Spawning.create_pool(props, shared_area_name, pool_amount, !Spawning.bullet(props).has("anim_idle"))
 
 var _delta:float
 func _physics_process(delta):
@@ -85,7 +85,7 @@ func _physics_process(delta):
 		active = true
 	
 	if can_respawn and auto_call and active and auto_pattern_id != "":
-		Spawning.spawn(self, auto_pattern_id, shared_area_name)
+		call_deferred("callAction")
 		can_respawn = false
 		if not rotating_speed > 0: set_physics_process(false)
 		
