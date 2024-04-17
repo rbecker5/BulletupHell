@@ -145,7 +145,6 @@ func _exit_tree():
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint(): return
 
-	_delta = delta
 	#if not cull_fixed_screen:
 		#viewrect = Rect2(-get_canvas_transform().get_origin()/get_canvas_transform().get_scale(), \
 						#get_viewport_rect().size/get_canvas_transform().get_scale())
@@ -153,15 +152,16 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint(): return
 
+	_delta = delta
 	if not poolBullets.is_empty():
 #		if move_thread.is_started():
 #			move_thread.wait_to_finish()
 #		move_thread.start(bullet_movement.bind(delta))
 #		#draw_thread.start(queue_redraw)
-		bullet_movement(delta)
+		bullet_movement()
 		queue_redraw()
 
-	time += delta
+	time += _delta
 	if time == loop_length: time = 0
 	while not poolQueue.is_empty() and poolTimes[0] < time:
 		next_in_queue = poolQueue[0]
@@ -664,10 +664,10 @@ func init_special_variables(b:Dictionary, rid):
 #§§§§§§§§§§§§§ MOVEMENT §§§§§§§§§§§§§
 
 
-func move_scale(B:Dictionary, props, delta:float):
+func move_scale(B:Dictionary, props):
 	if B.get("scale_multi_iter",0) == 0: return
 
-	B["scale_interpolate"] += delta
+	B["scale_interpolate"] += _delta
 	var _scale = props["scale"] * props["scale_multiplier"].sample(B["scale_interpolate"]/props["scale_multi_scale"])
 	B["scale"] = Vector2(_scale,_scale)
 	if B["scale_interpolate"]/props["scale_multi_scale"] >= 1 and props["scale_multi_iterations"] != -1:
@@ -682,10 +682,10 @@ func move_trail(B:Dictionary, props):
 		B["trail"].remove_at(3)
 		B["trail"].insert(0, B["position"])
 
-func move_speed(B:Dictionary, props, delta:float):
+func move_speed(B:Dictionary, props):
 	if B.get("speed_multi_iter",0) == 0: return
 
-	B["speed_interpolate"] += delta
+	B["speed_interpolate"] += _delta
 	B["speed"] = props["a_speed_multiplier"].sample(B["speed_interpolate"]/props["a_speed_multi_scale"])
 	if B["speed_interpolate"]/props["a_speed_multi_scale"] >= 1 and props["a_speed_multi_iterations"] != -1:
 		B["speed_multi_iter"] -= 1
@@ -700,7 +700,7 @@ func move_equation(B:Dictionary, props):
 	B["curveDir_index"] += 0.05 #TODO add speed
 	B["curve"] = expression.execute([B["curveDir_index"]])*100
 
-func move_homing(B:Dictionary, props, delta:float):
+func move_homing(B:Dictionary, props):
 	if not B.get("homing_target", null): return
 
 	var target_pos:Vector2
@@ -724,12 +724,12 @@ func move_homing(B:Dictionary, props, delta:float):
 						B["homing_target"] = null
 		else: B["homing_target"] = null
 
-	B["vel"] += ((target_pos-B["position"]).normalized()*B["speed"] - B["vel"]).normalized() * props["homing_steer"] * delta
+	B["vel"] += ((target_pos-B["position"]).normalized()*B["speed"] - B["vel"]).normalized() * props["homing_steer"] * _delta
 	B["rotation"] = B["vel"].angle()
 
-func move_curve(B:Dictionary, props, delta:float, b):
+func move_curve(B:Dictionary, props, b):
 	B["position"] = B["spawn_pos"]+(props["curve"].sample_baked(B["curve_counter"]*B["speed"])-B["curve_start"]).rotated(B["rotation"])
-	B["curve_counter"] += delta
+	B["curve_counter"] += _delta
 
 	if B["curve_counter"] * B["speed"] < props["curve"].get_baked_length(): return
 	match props["a_curve_movement"]:
@@ -741,7 +741,7 @@ func move_curve(B:Dictionary, props, delta:float, b):
 		CURVE_TYPE.OnceThenStay: B["speed"] = 0
 
 
-func bullet_movement(delta:float):
+func bullet_movement():
 	var B:Dictionary; var props:Dictionary;
 	for b in poolBullets.keys():
 		B = poolBullets[b]
@@ -753,7 +753,7 @@ func bullet_movement(delta:float):
 			continue
 
 		if B.has("death_counter"):
-			B["death_counter"] += delta
+			B["death_counter"] += _delta
 			if B["death_counter"] >= props["death_after_time"]:
 				delete_bullet(b)
 				_apply_movement(B, b, props)
@@ -761,7 +761,7 @@ func bullet_movement(delta:float):
 		if B.has("rot_index"): B["rot_index"] += props["spec_rotating_speed"]
 
 		#scale curve
-		move_scale(B, props, delta)
+		move_scale(B, props)
 
 		if B["state"] == BState.Spawned:
 			if B["source_node"] is Dictionary: B["position"] = B["spawn_pos"] + B["source_node"]["position"]
@@ -772,19 +772,19 @@ func bullet_movement(delta:float):
 			move_trail(B, props)
 
 			# speed curve
-			move_speed(B, props, delta)
+			move_speed(B, props)
 
 			# direction from math equation
 			move_equation(B, props)
 
 			# homing
-			move_homing(B, props, delta)
+			move_homing(B, props)
 
 			# follow path2D
-			if props.get("curve"): move_curve(B, props, delta, b)
+			if props.get("curve"): move_curve(B, props, b)
 			else:
 				B["vel"] = Vector2(B["speed"],B.get("curve",0)).rotated(B["rotation"])
-				B["position"] += B["vel"]*delta
+				B["position"] += B["vel"]*_delta
 
 			if B.has("spawn_pos") and not props.has("curve"): B["position"] += B["spawn_pos"]
 
