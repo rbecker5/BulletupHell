@@ -70,7 +70,7 @@ func _ready():
 
 func set_pool():
 	var props = Spawning.pattern(auto_pattern_id)["bullet"]
-	Spawning.create_pool(props, shared_area_name, pool_amount, !Spawning.bullet(props).has("anim_idle"))
+	Spawning.create_pool(props, shared_area_name, pool_amount, Spawning.bullet(props).has("instance_id"))
 
 var _delta:float
 func _physics_process(delta):
