@@ -280,7 +280,7 @@ func wake_from_pool(bullet:String, queued_instance:Dictionary, shared_area:Strin
 	elif inactive_pool[bullet].is_empty():
 		push_warning("WARNING : bullet pool for bullet of ID "+bullet+" is empty. Create bigger one next time to avoid lag.")
 		create_pool(bullet, queued_instance["shared_area"].name, max(inactive_pool["__SIZE__"+bullet]/10, 50), object)
-
+	
 	if inactive_pool[bullet][0] is Array:
 		var i:int = 0
 		while inactive_pool[bullet][i][1] != shared_area: i += 1
@@ -1075,7 +1075,6 @@ func get_variation(mean:float, variance:float, limit_down=0, limit_up=0):
 	elif limit_down != 0: return max(RAND.randfn(mean,variance),limit_down)
 	elif limit_up != 0: return min(RAND.randfn(mean,variance),limit_up)
 	else:
-		print(mean,variance," ",RAND.randfn(mean,variance))
 		return RAND.randfn(mean,variance)
 
 func get_choice_string(list:String):
@@ -1149,6 +1148,7 @@ func target_from_list(B:Dictionary, do:bool=true):
 	B["homing_target"] = B["props"]["homing_list"][B["homing_counter"]]
 
 func trig_timeout(b, rid):
+	if b == null: return
 	if b is Node: b.trigger_timeout = true
 	else: b["trig_timeout"] = true
 	b.get("trig_container").checkTriggers(b,rid)
