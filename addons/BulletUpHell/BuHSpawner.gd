@@ -446,7 +446,7 @@ func spawn(spawner, id:String, shared_area:String="0"):
 		_plan_spawning(pattern, bullets)
 
 		if iter > 0: iter -= 1
-		await get_tree().create_timer(pattern.cooldown_spawn).timeout
+		await get_tree().create_timer(pattern.cooldown_spawn, false, true).timeout
 		if local_reset_counter != global_reset_counter: return
 
 func _plan_spawning(pattern:Pattern, bullets:Array):
@@ -607,7 +607,7 @@ func _shoot(bullets:Array):
 
 		if props.has("homing_target") or props.has("node_homing"):
 			if props.get("homing_time_start",0) > 0:
-				get_tree().create_timer(props["homing_time_start"]).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,true))
+				get_tree().create_timer(props["homing_time_start"], false, true).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,true))
 			else: _on_Homing_timeout(B, true)
 		if props.get("homing_select_in_group",-1) == GROUP_SELECT.Nearest_on_shoot:
 			target_from_options(B)
@@ -1106,7 +1106,7 @@ func _on_Homing_timeout(B:Dictionary, start:bool):
 			if props.has("homing_target") or props.has("node_homing"): B["homing_target"] = props["node_homing"]
 			else: B["homing_target"] = props["homing_position"]
 		if props["homing_duration"] > 0:
-			get_tree().create_timer(props["homing_duration"]).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,false))
+			get_tree().create_timer(props["homing_duration"], false, true).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,false))
 		if props.get("homing_select_in_group",-1) == GROUP_SELECT.Nearest_on_homing:
 			target_from_options(B)
 		elif props.get("homing_select_in_group",-1) == GROUP_SELECT.Random:
