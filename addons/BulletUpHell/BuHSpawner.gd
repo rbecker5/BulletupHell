@@ -135,29 +135,15 @@ func reset(minimal:bool=false):
 				if elem[0] == "@": continue
 				array.erase(elem)
 
-
-func _exit_tree():
-	#spawn_thread.wait_to_finish()
-	#draw_thread.wait_to_finish()
-	#move_thread.wait_to_finish()
-	pass
-
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint(): return
 
-	#if not cull_fixed_screen:
-		#viewrect = Rect2(-get_canvas_transform().get_origin()/get_canvas_transform().get_scale(), \
-						#get_viewport_rect().size/get_canvas_transform().get_scale())
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint(): return
 
 	_delta = delta
 	if not poolBullets.is_empty():
-#		if move_thread.is_started():
-#			move_thread.wait_to_finish()
-#		move_thread.start(bullet_movement.bind(delta))
-#		#draw_thread.start(queue_redraw)
 		bullet_movement()
 		queue_redraw()
 
@@ -267,7 +253,6 @@ func create_pool(bullet:String, shared_area:String, amount:int, object:bool=fals
 		$SharedAreas.get_node(shared_area).set_meta("ShapeCount", $SharedAreas.get_node(shared_area).get_meta("ShapeCount",0)+amount) # Warning, bad sync possible ?
 		for i in amount:
 			new_rid = create_shape(shared_rid, arrayAnim[props["anim_spawn"]][ANIM.COLLISION], true, count+i)
-#			shape_indexes[new_rid] = count+i
 			_update_shape_indexes(new_rid, count+i, shared_area)
 			inactive_pool[bullet].append([new_rid, shared_area])
 	inactive_pool["__SIZE__"+bullet] += amount
@@ -350,7 +335,6 @@ func set_angle(pattern:Pattern, pos:Vector2, queued_instance:Dictionary):
 
 func create_bullet_instance_dict(queued_instance:Dictionary, bullet_props:Dictionary, pattern:Pattern):
 	queued_instance["shape_disabled"] = true
-	#if pattern.bullet in no_culling_for: queued_instance["no_culling"] = true
 	queued_instance["speed"] = bullet_props.speed
 	queued_instance["vel"] = Vector2()
 	if bullet_props.has("groups"): queued_instance["groups"] = bullet_props.get("groups")
@@ -379,10 +363,6 @@ func set_spawn_data(queued_instance:Dictionary, bullet_props:Dictionary, pattern
 ### TRIGGER SPAWN ###
 
 func spawn(spawner, id:String, shared_area:String="0"):
-	#spawn_thread.start(_thread_spawn.bind(spawner, id, shared_area))
-	#_thread_spawn(spawner, id, shared_area)
-
-#func _thread_spawn(spawner, id:String, shared_area:String="0"):
 	assert(arrayPatterns.has(id))
 	var local_reset_counter:int = global_reset_counter
 	var bullets:Array
@@ -446,7 +426,7 @@ func spawn(spawner, id:String, shared_area:String="0"):
 		_plan_spawning(pattern, bullets)
 
 		if iter > 0: iter -= 1
-		await get_tree().create_timer(pattern.cooldown_spawn, false, true).timeout
+		await get_tree().create_timer(pattern.cooldown_spawn).timeout
 		if local_reset_counter != global_reset_counter: return
 
 func _plan_spawning(pattern:Pattern, bullets:Array):
@@ -607,7 +587,7 @@ func _shoot(bullets:Array):
 
 		if props.has("homing_target") or props.has("node_homing"):
 			if props.get("homing_time_start",0) > 0:
-				get_tree().create_timer(props["homing_time_start"], false, true).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,true))
+				get_tree().create_timer(props["homing_time_start"]).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,true))
 			else: _on_Homing_timeout(B, true)
 		if props.get("homing_select_in_group",-1) == GROUP_SELECT.Nearest_on_shoot:
 			target_from_options(B)
@@ -647,13 +627,8 @@ func init_special_variables(b:Dictionary, rid):
 		b['trig_types'] = trig_types
 		b['trig_iter'] = {}
 		if trig_types.has("TrigCol"): b["trig_collider"] = null
-#		if trig_types.has("TrigPos"): b["trig_collider"] = null
 		if trig_types.has("TrigSig"): b["trig_signal"] = null
 		if trig_types.has("TrigTime"): b["trig_timeout"] = false
-
-#	if bp.has("spec_rotating_speed"): b['bounces'] = bp["spec_rotating_speed"]
-#	if bp.has("homing_target") or bp.has("homing_position"):
-#		b['homing_target'] = bp["homing_target"]
 
 
 
@@ -886,7 +861,6 @@ func modulate_bullet(b:Dictionary, texture:Texture):
 
 func _draw():
 	if Engine.is_editor_hint(): return
-	viewrect = get_viewport().get_visible_rect()
 
 	var texture:Texture; var b
 	for B in poolBullets.keys():
@@ -903,8 +877,7 @@ func _draw():
 			for l in 3:
 				draw_line(b["trail"][l],b["trail"][l+1],b["props"]["spec_trail_modulate"],b["props"]["spec_trail_width"])
 
-		if (not (b["state"] >= BState.Spawning and viewrect.has_point(b["position"]))) or \
-			(b["props"].has("spec_modulate") and b["props"].has("spec_modulate_loop") and \
+		if (not (b["state"] >= BState.Spawning)) or (b["props"].has("spec_modulate") and b["props"].has("spec_modulate_loop") and \
 			b["props"]["spec_modulate"].get_color(0).a == 0):
 				continue
 
@@ -973,9 +946,6 @@ func clear_bullets_within_dist(target_pos, radius:float=STANDARD_BULLET_RADIUS):
 	for b in poolBullets.keys():
 		if poolBullets[b]["position"].distance_to(target_pos) < radius:
 			delete_bullet(b)
-
-#func clear_all_offscreen_bullets():
-	#for b in poolBullets.keys(): check_bullet_culling(poolBullets[b],b)
 
 func delete_bullet(b):
 	if not poolBullets.has(b): return
@@ -1106,7 +1076,7 @@ func _on_Homing_timeout(B:Dictionary, start:bool):
 			if props.has("homing_target") or props.has("node_homing"): B["homing_target"] = props["node_homing"]
 			else: B["homing_target"] = props["homing_position"]
 		if props["homing_duration"] > 0:
-			get_tree().create_timer(props["homing_duration"], false, true).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,false))
+			get_tree().create_timer(props["homing_duration"]).connect("timeout",Callable(self,"_on_Homing_timeout").bind(B,false))
 		if props.get("homing_select_in_group",-1) == GROUP_SELECT.Nearest_on_homing:
 			target_from_options(B)
 		elif props.get("homing_select_in_group",-1) == GROUP_SELECT.Random:
@@ -1247,12 +1217,8 @@ func match_rand_prop(original:String) -> String:
 		"a_speed_multiplier": return "r_speed_multi_curve"
 		"a_speed_multi_iterations": return "r_speed_multi_iter"
 		"spec_bounces": return "r_bounce"
-#		"spec_no_collision": return "r_"
 		"spec_modulate": return "r_modulate"
 		"spec_rotating_speed": return "r_rotating"
-#		"spec_trail_length": return "r_"
-#		"spec_trail_width": return "r_"
-#		"spec_trail_modulate": return "r_"
 		"trigger_container": return "r_trigger"
 		"homing_target": return "r_homing_target"
 		"homing_special_target": return "r_special_target"
