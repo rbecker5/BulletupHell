@@ -3,9 +3,9 @@ extends Node2D
 
 
 var auto_pattern_id:String = ""
-var auto_start_on_cam:bool = true
+var auto_start_on_cam:bool = true : set = _set_start_on_cam
 var auto_start_after_time:float = 0.0
-var auto_start_at_distance:float = 5
+var auto_start_at_distance:float = 5 : set = _set_start_at_dist
 var auto_distance_from:NodePath
 var trigger_container:NodePath
 
@@ -23,41 +23,27 @@ var shared_area_name = "0"
 var shared_area
 var pool_amount:int = 50
 
-var r_randomisation_chances:float
-var r_active_chances:float
-var r_shared_area_choice:String
-var r_rotating_variation:Vector3
-var r_pattern_choice:String
-var r_start_time_choice:String
-var r_start_time_variation:Vector3
-
-var auto_call:bool = false
+var was_on_cam = false
+var was_at_dist = false
+var was_at_time = false
 var can_respawn:bool = true
 
 func _ready():
 	if Engine.is_editor_hint(): return
+	set_physics_process(false)
 	
 	if shared_area_name != "":
 		shared_area = Spawning.get_shared_area(shared_area_name)
 	else: push_error("Spawnpoint doesn't have any shared_area")
-		
-	if auto_start_on_cam:
-		assert(auto_pattern_id != "")
-		var instance = VisibleOnScreenNotifier2D.new()
-		instance.connect("screen_entered",Callable(self,"on_screen").bind(true))
-		instance.connect("screen_exited",Callable(self,"on_screen").bind(false))
-	elif auto_distance_from != NodePath(): set_physics_process(true)
-	elif auto_pattern_id != "":
-		if auto_start_after_time > float(0.0):
-			await get_tree().create_timer(auto_start_after_time).timeout
-		auto_call = true
-		set_physics_process(active)
-		
-	if active and auto_pattern_id != "":
-		if auto_start_after_time > float(0.0):
-			await get_tree().create_timer(auto_start_after_time).timeout
-		auto_call = true
-		set_physics_process(active)
+	
+	assert(auto_pattern_id != "")
+	# setup spawning conditions
+	if active:
+		if auto_start_on_cam: _set_start_on_cam(true)
+		if auto_distance_from != NodePath(): set_physics_process(true)
+		if not (auto_start_on_cam or auto_distance_from != NodePath()) and auto_start_after_time > float(0.0):
+			await get_tree().create_timer(auto_start_after_time, false).timeout
+			was_at_time = true
 		
 	if rotating_speed > 0: set_physics_process(active)
 		
@@ -72,28 +58,41 @@ func set_pool():
 	var props = Spawning.pattern(auto_pattern_id)["bullet"]
 	Spawning.create_pool(props, shared_area_name, pool_amount, Spawning.bullet(props).has("instance_id"))
 
+#func _process(delta):
+	#rotation += rotating_speed
+
 var _delta:float
 func _physics_process(delta):
 	if Engine.is_editor_hint(): return
 	_delta = delta
-	rotate(rotating_speed)
+	#rotate(rotating_speed)
+	rotation += rotating_speed * 100 * delta
 	if trig_container:
 		checkTrigger()
 		return
 	
-	if auto_distance_from != NodePath() and global_position.distance_to(get_node(auto_distance_from).global_position) <= auto_start_at_distance:
-		active = true
-	
-	if can_respawn and auto_call and active and auto_pattern_id != "":
+	# can spawn
+	if can_respawn and check_can_spawn() and active:
 		call_deferred("callAction")
 		can_respawn = false
 		if not rotating_speed > 0: set_physics_process(false)
-		
+		#apply_randomness(false)
+	elif was_at_dist == false and auto_distance_from != NodePath() and \
+			global_position.distance_to(get_node(auto_distance_from).global_position) <= auto_start_at_distance:
+		if auto_start_after_time > float(0.0):
+			await get_tree().create_timer(auto_start_after_time, false).timeout
+			was_at_time = true
+		was_at_dist = true
+
+func check_can_spawn():
+	return (!auto_start_on_cam or was_on_cam) and (auto_distance_from == NodePath() or was_at_dist) and (auto_start_after_time == float(0.0) or was_at_time)
 
 func on_screen(is_on):
+	if was_on_cam: return
 	if is_on and auto_start_after_time > float(0.0):
-		await get_tree().create_timer(auto_start_after_time).timeout
-	active = is_on
+		await get_tree().create_timer(auto_start_after_time, false).timeout
+		was_at_time = true
+	was_on_cam = true
 	set_physics_process(active)
 
 func triggerSignal(sig):
@@ -113,6 +112,21 @@ func checkTrigger():
 	if not (active and auto_pattern_id != "" and trig_container): return
 	trig_container.checkTriggers(self, self)
 #		Spawning.spawn(self, auto_pattern_id, shared_area_name)
+
+var vis:VisibleOnScreenNotifier2D
+func _set_start_on_cam(value):
+	auto_start_on_cam = value
+	if Engine.is_editor_hint(): return
+	if not auto_start_on_cam or vis != null: return
+	vis = VisibleOnScreenNotifier2D.new()
+	vis.connect("screen_entered",Callable(self,"on_screen").bind(true))
+	vis.connect("screen_exited",Callable(self,"on_screen").bind(false))
+	call_deferred("add_child", vis)
+	
+func _set_start_at_dist(value):
+	auto_start_at_distance = value
+	if Engine.is_editor_hint(): return
+	set_physics_process(value)
 
 func callAction():
 	Spawning.spawn(self, auto_pattern_id, shared_area_name)
@@ -170,19 +184,4 @@ func _get_property_list() -> Array:
 			type = TYPE_NODE_PATH,
 			usage = PROPERTY_USAGE_DEFAULT
 		}
-#		,{
-#			name = "Random",
-#			type = TYPE_NIL,
-#			hint_string = "r_",
-#			usage = PROPERTY_USAGE_GROUP
-#		},
-#		{ name = "r_randomisation_chances", type = TYPE_FLOAT,
-#			hint = PROPERTY_HINT_RANGE, hint_string = "0, 1", usage = PROPERTY_USAGE_DEFAULT },
-#		{ name = "r_active_chances", type = TYPE_FLOAT,
-#			hint = PROPERTY_HINT_RANGE, hint_string = "0, 1", usage = PROPERTY_USAGE_DEFAULT },
-#		{ name = "r_shared_area_choice", type = TYPE_STRING, usage = PROPERTY_USAGE_DEFAULT },
-#		{ name = "r_rotating_variation", type = TYPE_VECTOR3, usage = PROPERTY_USAGE_DEFAULT },
-#		{ name = "r_pattern_choice", type = TYPE_ARRAY, usage = PROPERTY_USAGE_DEFAULT },
-#		{ name = "r_start_time_choice", type = TYPE_STRING, usage = PROPERTY_USAGE_DEFAULT },
-#		{ name = "r_start_time_variation", type = TYPE_VECTOR3, usage = PROPERTY_USAGE_DEFAULT }
 	]
